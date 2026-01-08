@@ -18,11 +18,16 @@ phases:
       - cfn-lint templates/ecs/cluster-service.yml || true
       - cfn-lint templates/s3/buckets.yml || true
       - cfn-lint templates/lambda/functions.yml || true
+
+      - echo "CFN_PACKAGE_BUCKET=$CFN_PACKAGE_BUCKET"
+      - aws s3 ls "s3://$CFN_PACKAGE_BUCKET" || true
+
       - echo "Packaging CloudFormation template..."
-      - aws cloudformation package \
-          --template-file templates/root.yml \
-          --s3-bucket $CFN_PACKAGE_BUCKET \
-          --output-template-file packaged-root.yml
+      - |
+          aws cloudformation package \
+            --template-file templates/root.yml \
+            --s3-bucket "$CFN_PACKAGE_BUCKET" \
+            --output-template-file packaged-root.yml
 
 artifacts:
   files:
