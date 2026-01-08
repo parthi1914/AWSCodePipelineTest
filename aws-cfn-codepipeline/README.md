@@ -17,4 +17,6 @@ This repo contains minimal, maintainable CloudFormation nested stacks for:
 Set env variable in CodeBuild:
 - CFN_PACKAGE_BUCKET = <your packaging bucket>
 
+
+##Env Setup
 The Build stage outputs `packaged-root.yml` for CloudFormation deploy action.
