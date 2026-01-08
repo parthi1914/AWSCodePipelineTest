@@ -6,20 +6,25 @@ phases:
       python: 3.11
     commands:
       - pip install cfn-lint
+
   build:
     commands:
+      - cd aws-cfn-codepipeline
       - echo "Linting CloudFormation templates..."
-      - cfn-lint aws-cfn-codepipeline/templates/root.yml || true
-      - cfn-lint aws-cfn-codepipeline/templates/network/vpc.yml
-      - cfn-lint aws-cfn-codepipeline/templates/security/sg.yml
-      - cfn-lint aws-cfn-codepipeline/templates/alb/alb.yml
-      - cfn-lint aws-cfn-codepipeline/templates/ecs/cluster-service.yml
-      - cfn-lint aws-cfn-codepipeline/templates/s3/buckets.yml
-      - cfn-lint aws-cfn-codepipeline/templates/lambda/functions.yml
-      - aws cloudformation package --template-file aws-cfn-codepipeline/templates/root.yml --s3-bucket $CFN_PACKAGE_BUCKET ...
-
+      - cfn-lint templates/root.yml || true
+      - cfn-lint templates/network/vpc.yml || true
+      - cfn-lint templates/security/sg.yml || true
+      - cfn-lint templates/alb/alb.yml || true
+      - cfn-lint templates/ecs/cluster-service.yml || true
+      - cfn-lint templates/s3/buckets.yml || true
+      - cfn-lint templates/lambda/functions.yml || true
+      - echo "Packaging CloudFormation template..."
+      - aws cloudformation package \
+          --template-file templates/root.yml \
+          --s3-bucket $CFN_PACKAGE_BUCKET \
+          --output-template-file packaged-root.yml
 
 artifacts:
   files:
-    - packaged-root.yml
-    - params/*.json
+    - aws-cfn-codepipeline/packaged-root.yml
+    - aws-cfn-codepipeline/params/*.json
