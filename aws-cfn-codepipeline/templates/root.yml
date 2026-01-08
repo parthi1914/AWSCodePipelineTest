@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Root stack (nested) - VPC + ALB + ECS(Fargate) + S3 + Lambda
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues: [dev, qa, uat, prod]
+    Description: Deployment environment name
+  ProjectName:
+    Type: String
+    Default: myapp
+  VpcCidr:
+    Type: String
+    Default: 10.10.0.0/16
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.10.10.0/24
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.10.20.0/24
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: 10.10.110.0/24
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: 10.10.120.0/24
+
+Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: network/vpc.yml
+      Parameters:
+        Env: !Ref Env
+        ProjectName: !Ref ProjectName
+        VpcCidr: !Ref VpcCidr
+        PublicSubnet1Cidr: !Ref PublicSubnet1Cidr
+        PublicSubnet2Cidr: !Ref PublicSubnet2Cidr
+        PrivateSubnet1Cidr: !Ref PrivateSubnet1Cidr
+        PrivateSubnet2Cidr: !Ref PrivateSubnet2Cidr
+
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: security/sg.yml
+      Parameters:
+        Env: !Ref Env
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+
+  S3Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: s3/buckets.yml
+      Parameters:
+        Env: !Ref Env
+        ProjectName: !Ref ProjectName
+
+  AlbStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: alb/alb.yml
+      Parameters:
+        Env: !Ref Env
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+        PublicSubnetIds: !GetAtt NetworkStack.Outputs.PublicSubnetIds
+        AlbSecurityGroupId: !GetAtt SecurityStack.Outputs.AlbSecurityGroupId
+
+  LambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: lambda/functions.yml
+      Parameters:
+        Env: !Ref Env
+        ProjectName: !Ref ProjectName
+        LambdaCodeS3Bucket: !GetAtt S3Stack.Outputs.AppArtifactsBucket
+        LambdaCodeS3Key: lambda/hello.zip
+
+  EcsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ecs/cluster-service.yml
+      Parameters:
+        Env: !Ref Env
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+        PrivateSubnetIds: !GetAtt NetworkStack.Outputs.PrivateSubnetIds
+        EcsSecurityGroupId: !GetAtt SecurityStack.Outputs.EcsSecurityGroupId
+        AlbListenerArn: !GetAtt AlbStack.Outputs.HttpListenerArn
+        TargetGroupArn: !GetAtt AlbStack.Outputs.TargetGroupArn
+
+Outputs:
+  VpcId:
+    Value: !GetAtt NetworkStack.Outputs.VpcId
+  AlbDnsName:
+    Value: !GetAtt AlbStack.Outputs.AlbDnsName
+  LambdaArn:
+    Value: !GetAtt LambdaStack.Outputs.HelloFunctionArn
