@@ -10,6 +10,8 @@ phases:
   build:
     commands:
       - cd aws-cfn-codepipeline
+
+      # ---- Lint (non-blocking for now) ----
       - echo "Linting CloudFormation templates..."
       - cfn-lint templates/root.yml || true
       - cfn-lint templates/network/vpc.yml || true
@@ -19,16 +21,20 @@ phases:
       - cfn-lint templates/s3/buckets.yml || true
       - cfn-lint templates/lambda/functions.yml || true
 
-      - echo "CFN_PACKAGE_BUCKET=$CFN_PACKAGE_BUCKET"
-      - aws s3 ls "s3://$CFN_PACKAGE_BUCKET" || true
+      # ---- Debug & Validate bucket + permissions (BLOCKING on purpose) ----
+      - echo "AWS_REGION=$AWS_REGION"
+      - echo "CFN_PACKAGE_BUCKET=[$CFN_PACKAGE_BUCKET]"
+      - aws sts get-caller-identity
+      - aws s3api head-bucket --bucket "$CFN_PACKAGE_BUCKET"
+      - aws s3 ls "s3://$CFN_PACKAGE_BUCKET"
 
+      # ---- Package (this MUST succeed to generate packaged-root.yml) ----
       - echo "Packaging CloudFormation template..."
-      - |
-          aws cloudformation package \
-            --template-file templates/root.yml \
-            --s3-bucket "$CFN_PACKAGE_BUCKET" \
-            --output-template-file packaged-root.yml
-      - echo "CFN_PACKAGE_BUCKET=$CFN_PACKAGE_BUCKET"
+      - aws cloudformation package --template-file templates/root.yml --s3-bucket "$CFN_PACKAGE_BUCKET" --output-template-file packaged-root.yml
+
+      # ---- Verify output exists ----
+      - ls -la
+      - test -f packaged-root.yml
 
 artifacts:
   files:
