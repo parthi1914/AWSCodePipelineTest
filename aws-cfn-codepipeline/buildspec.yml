@@ -28,6 +28,7 @@ phases:
             --template-file templates/root.yml \
             --s3-bucket "$CFN_PACKAGE_BUCKET" \
             --output-template-file packaged-root.yml
+      - echo "CFN_PACKAGE_BUCKET=$CFN_PACKAGE_BUCKET"
 
 artifacts:
   files:
