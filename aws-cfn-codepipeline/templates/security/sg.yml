@@ -5,8 +5,12 @@ Parameters:
   Env:
     Type: String
     AllowedValues: [dev, qa, uat, prod]
+  Workstream:
+    Type: String
+    Description: Workstream identifier
   ProjectName:
     Type: String
+    Description: Application name
   VpcId:
     Type: AWS::EC2::VPC::Id
 
@@ -14,6 +18,7 @@ Resources:
   AlbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupName: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-SG-ALB'
       GroupDescription: Allow inbound HTTP to ALB
       VpcId: !Ref VpcId
       SecurityGroupIngress:
@@ -26,7 +31,9 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Env}-alb-sg'
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-SG-ALB'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env
@@ -35,6 +42,7 @@ Resources:
   EcsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupName: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-SG-ECS'
       GroupDescription: Allow inbound from ALB to ECS tasks
       VpcId: !Ref VpcId
       SecurityGroupIngress:
@@ -47,7 +55,9 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Env}-ecs-sg'
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-SG-ECS'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env

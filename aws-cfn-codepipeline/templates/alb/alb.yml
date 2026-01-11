@@ -5,8 +5,12 @@ Parameters:
   Env:
     Type: String
     AllowedValues: [dev, qa, uat, prod]
+  Workstream:
+    Type: String
+    Description: Workstream identifier
   ProjectName:
     Type: String
+    Description: Application name
   VpcId:
     Type: AWS::EC2::VPC::Id
   PublicSubnetIds:
@@ -19,13 +23,17 @@ Resources:
   Alb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub '${ProjectName}-${Env}-alb'
+      Name: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-ALB'
       Type: application
       Scheme: internet-facing
       SecurityGroups:
         - !Ref AlbSecurityGroupId
       Subnets: !Split [",", !Ref PublicSubnetIds]
       Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-ALB-Main'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env
@@ -34,7 +42,7 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub '${ProjectName}-${Env}-tg'
+      Name: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-TG'
       VpcId: !Ref VpcId
       Protocol: HTTP
       Port: 8080
@@ -45,6 +53,10 @@ Resources:
       Matcher:
         HttpCode: '200-399'
       Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-TG-Main'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env

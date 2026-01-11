@@ -5,8 +5,12 @@ Parameters:
   Env:
     Type: String
     AllowedValues: [dev, qa, uat, prod]
+  Workstream:
+    Type: String
+    Description: Workstream identifier
   ProjectName:
     Type: String
+    Description: Application name
   LambdaCodeS3Bucket:
     Type: String
   LambdaCodeS3Key:
@@ -16,7 +20,7 @@ Resources:
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-${Env}-lambdaRole'
+      RoleName: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Role-Lambda'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -27,6 +31,10 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Role-Lambda'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env
@@ -35,7 +43,7 @@ Resources:
   HelloFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub '${ProjectName}-${Env}-hello'
+      FunctionName: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Lambda-Hello'
       Runtime: python3.11
       Handler: app.handler
       Role: !GetAtt LambdaRole.Arn
@@ -46,6 +54,15 @@ Resources:
       Environment:
         Variables:
           ENV: !Ref Env
+      Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Lambda-Hello'
+        - Key: Workstream
+          Value: !Ref Workstream
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Env
+          Value: !Ref Env
 
 Outputs:
   HelloFunctionArn:

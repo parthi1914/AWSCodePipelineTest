@@ -5,8 +5,12 @@ Parameters:
   Env:
     Type: String
     AllowedValues: [dev, qa, uat, prod]
+  Workstream:
+    Type: String
+    Description: Workstream identifier
   ProjectName:
     Type: String
+    Description: Application name
   VpcId:
     Type: AWS::EC2::VPC::Id
   PrivateSubnetIds:
@@ -30,8 +34,12 @@ Resources:
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub '${ProjectName}-${Env}-cluster'
+      ClusterName: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-ECS-Cluster'
       Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-ECS-Cluster'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env
@@ -40,7 +48,7 @@ Resources:
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-${Env}-ecsTaskExecutionRole'
+      RoleName: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Role-ECSTaskExecution'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -51,6 +59,10 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Role-ECSTaskExecution'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env
@@ -59,13 +71,13 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/ecs/${ProjectName}/${Env}'
+      LogGroupName: !Sub '/ecs/hq-${Workstream}-${Env}-${ProjectName}'
       RetentionInDays: 14
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub '${ProjectName}-${Env}-task'
+      Family: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Task'
       Cpu: '256'
       Memory: '512'
       NetworkMode: awsvpc
@@ -101,7 +113,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: ListenerRule
     Properties:
-      ServiceName: !Sub '${ProjectName}-${Env}-svc'
+      ServiceName: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-Service'
       Cluster: !Ref Cluster
       LaunchType: FARGATE
       DesiredCount: 1
@@ -116,6 +128,10 @@ Resources:
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroupArn
       Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${ProjectName}-ECS-Service'
+        - Key: Workstream
+          Value: !Ref Workstream
         - Key: Project
           Value: !Ref ProjectName
         - Key: Env

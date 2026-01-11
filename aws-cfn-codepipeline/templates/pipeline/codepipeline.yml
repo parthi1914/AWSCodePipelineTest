@@ -1,0 +1,373 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CodePipeline for CloudFormation deployment - Source -> Build -> Deploy
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues: [dev, qa, uat, prod]
+    Description: Deployment environment name
+
+  Workstream:
+    Type: String
+    Default: Workstream
+    Description: Workstream identifier (e.g., Finance, HR, IT)
+
+  AppName:
+    Type: String
+    Default: MyApp
+    Description: Application name
+
+  GitHubOwner:
+    Type: String
+    Description: GitHub repository owner/organization
+
+  GitHubRepo:
+    Type: String
+    Description: GitHub repository name
+
+  GitHubBranch:
+    Type: String
+    Default: main
+    Description: GitHub branch to track
+
+  GitHubOAuthToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub Personal Access Token (OAuth)
+
+  CFNPackageBucket:
+    Type: String
+    Description: S3 bucket for CloudFormation package artifacts
+
+  PipelineArtifactBucket:
+    Type: String
+    Description: S3 bucket for CodePipeline artifacts
+
+Resources:
+  # ============================================================
+  # IAM Roles
+  # ============================================================
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'hq-${Workstream}-${Env}-${AppName}-Role-CodePipeline'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodePipelineFullAccess
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${PipelineArtifactBucket}'
+                  - !Sub 'arn:aws:s3:::${PipelineArtifactBucket}/*'
+                  - !Sub 'arn:aws:s3:::${CFNPackageBucket}'
+                  - !Sub 'arn:aws:s3:::${CFNPackageBucket}/*'
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: !GetAtt CodeBuildProject.Arn
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:ValidateTemplate
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt CloudFormationServiceRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${AppName}-Role-CodePipeline'
+        - Key: Workstream
+          Value: !Ref Workstream
+        - Key: Env
+          Value: !Ref Env
+        - Key: AppName
+          Value: !Ref AppName
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'hq-${Workstream}-${Env}-${AppName}-Role-CodeBuild'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${PipelineArtifactBucket}'
+                  - !Sub 'arn:aws:s3:::${PipelineArtifactBucket}/*'
+                  - !Sub 'arn:aws:s3:::${CFNPackageBucket}'
+                  - !Sub 'arn:aws:s3:::${CFNPackageBucket}/*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:ValidateTemplate
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${AppName}-Role-CodeBuild'
+        - Key: Workstream
+          Value: !Ref Workstream
+        - Key: Env
+          Value: !Ref Env
+        - Key: AppName
+          Value: !Ref AppName
+
+  CloudFormationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'hq-${Workstream}-${Env}-${AppName}-Role-CloudFormation'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+      Policies:
+        - PolicyName: CloudFormationIAMAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:ListPolicyVersions
+                  - iam:CreatePolicyVersion
+                  - iam:DeletePolicyVersion
+                  - iam:TagRole
+                  - iam:UntagRole
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${AppName}-Role-CloudFormation'
+        - Key: Workstream
+          Value: !Ref Workstream
+        - Key: Env
+          Value: !Ref Env
+        - Key: AppName
+          Value: !Ref AppName
+
+  # ============================================================
+  # CodeBuild Project
+  # ============================================================
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub 'hq-${Workstream}-${Env}-${AppName}-CodeBuild-CFNPackage'
+      Description: Build and package CloudFormation templates
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        EnvironmentVariables:
+          - Name: CFN_PACKAGE_BUCKET
+            Value: !Ref CFNPackageBucket
+          - Name: AWS_REGION
+            Value: !Ref AWS::Region
+          - Name: ENV
+            Value: !Ref Env
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: aws-cfn-codepipeline/buildspec.yml
+      TimeoutInMinutes: 15
+      Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${AppName}-CodeBuild-CFNPackage'
+        - Key: Workstream
+          Value: !Ref Workstream
+        - Key: Env
+          Value: !Ref Env
+        - Key: AppName
+          Value: !Ref AppName
+
+  # ============================================================
+  # CodePipeline
+  # ============================================================
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub 'hq-${Workstream}-${Env}-${AppName}-Pipeline-CFNDeploy'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactBucket
+      Stages:
+        # Source Stage
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: '1'
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubOAuthToken
+                PollForSourceChanges: false
+              OutputArtifacts:
+                - Name: SourceOutput
+              RunOrder: 1
+
+        # Build Stage
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+        # Deploy Stage
+        - Name: Deploy
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                StackName: !Sub 'hq-${Workstream}-${Env}-${AppName}-Stack-Infrastructure'
+                ChangeSetName: !Sub 'hq-${Workstream}-${Env}-${AppName}-ChangeSet'
+                TemplatePath: BuildOutput::aws-cfn-codepipeline/packaged-root.yml
+                TemplateConfiguration: !Sub 'BuildOutput::aws-cfn-codepipeline/params/${Env}.json'
+                Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn: !GetAtt CloudFormationServiceRole.Arn
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                StackName: !Sub 'hq-${Workstream}-${Env}-${AppName}-Stack-Infrastructure'
+                ChangeSetName: !Sub 'hq-${Workstream}-${Env}-${AppName}-ChangeSet'
+              RunOrder: 2
+      Tags:
+        - Key: Name
+          Value: !Sub 'hq-${Workstream}-${Env}-${AppName}-Pipeline-CFNDeploy'
+        - Key: Workstream
+          Value: !Ref Workstream
+        - Key: Env
+          Value: !Ref Env
+        - Key: AppName
+          Value: !Ref AppName
+
+  # ============================================================
+  # GitHub Webhook (for automatic triggers)
+  # ============================================================
+
+  GithubWebhook:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Name: !Sub 'hq-${Workstream}-${Env}-${AppName}-Webhook-GitHub'
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubOAuthToken
+      Filters:
+        - JsonPath: "$.ref"
+          MatchEquals: !Sub 'refs/heads/${GitHubBranch}'
+      TargetPipeline: !Ref Pipeline
+      TargetAction: SourceAction
+      TargetPipelineVersion: !GetAtt Pipeline.Version
+      RegisterWithThirdParty: true
+
+Outputs:
+  PipelineName:
+    Description: CodePipeline name
+    Value: !Ref Pipeline
+    Export:
+      Name: !Sub 'hq-${Workstream}-${Env}-${AppName}-PipelineName'
+
+  PipelineUrl:
+    Description: CodePipeline URL
+    Value: !Sub 'https://console.aws.amazon.com/codesuite/codepipeline/pipelines/${Pipeline}/view?region=${AWS::Region}'
+
+  CodeBuildProjectName:
+    Description: CodeBuild project name
+    Value: !Ref CodeBuildProject
+    Export:
+      Name: !Sub 'hq-${Workstream}-${Env}-${AppName}-CodeBuildProject'

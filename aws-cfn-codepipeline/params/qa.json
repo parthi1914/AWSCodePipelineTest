@@ -1,9 +1,12 @@
 {
-  "Env": "qa",
-  "ProjectName": "myapp",
-  "VpcCidr": "10.10.0.0/16",
-  "PublicSubnet1Cidr": "10.10.10.0/24",
-  "PublicSubnet2Cidr": "10.10.20.0/24",
-  "PrivateSubnet1Cidr": "10.10.110.0/24",
-  "PrivateSubnet2Cidr": "10.10.120.0/24"
+  "Parameters": {
+    "Env": "qa",
+    "Workstream": "Workstream",
+    "ProjectName": "MyApp",
+    "VpcCidr": "10.20.0.0/16",
+    "PublicSubnet1Cidr": "10.20.10.0/24",
+    "PublicSubnet2Cidr": "10.20.20.0/24",
+    "PrivateSubnet1Cidr": "10.20.110.0/24",
+    "PrivateSubnet2Cidr": "10.20.120.0/24"
+  }
 }

@@ -1,0 +1,13 @@
+{
+  "Parameters": {
+    "Env": "dev",
+    "Workstream": "Workstream",
+    "AppName": "MyApp",
+    "GitHubOwner": "YOUR_GITHUB_USERNAME",
+    "GitHubRepo": "YOUR_REPO_NAME",
+    "GitHubBranch": "main",
+    "GitHubOAuthToken": "YOUR_GITHUB_TOKEN",
+    "CFNPackageBucket": "hq-workstream-dev-myapp-s3-cfn-package",
+    "PipelineArtifactBucket": "hq-workstream-dev-myapp-s3-pipeline-artifacts"
+  }
+}

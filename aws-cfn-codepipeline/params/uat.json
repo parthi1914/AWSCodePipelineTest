@@ -1,9 +1,12 @@
 {
-  "Env": "uat",
-  "ProjectName": "myapp",
-  "VpcCidr": "10.10.0.0/16",
-  "PublicSubnet1Cidr": "10.10.10.0/24",
-  "PublicSubnet2Cidr": "10.10.20.0/24",
-  "PrivateSubnet1Cidr": "10.10.110.0/24",
-  "PrivateSubnet2Cidr": "10.10.120.0/24"
+  "Parameters": {
+    "Env": "uat",
+    "Workstream": "Workstream",
+    "ProjectName": "MyApp",
+    "VpcCidr": "10.30.0.0/16",
+    "PublicSubnet1Cidr": "10.30.10.0/24",
+    "PublicSubnet2Cidr": "10.30.20.0/24",
+    "PrivateSubnet1Cidr": "10.30.110.0/24",
+    "PrivateSubnet2Cidr": "10.30.120.0/24"
+  }
 }
