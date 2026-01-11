@@ -1,4 +1,3 @@
- "Parameters": {
 {
   "Env": "dev",
   "ProjectName": "myapp",
@@ -8,4 +7,4 @@
   "PrivateSubnet1Cidr": "10.10.110.0/24",
   "PrivateSubnet2Cidr": "10.10.120.0/24"
 }
-}
+
